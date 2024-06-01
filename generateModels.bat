@@ -1,0 +1,1 @@
+sqlacodegen  mysql+pymysql://root:@localhost:3306/apotek --outfile models.py
