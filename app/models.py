@@ -36,12 +36,6 @@ class Pemasok(Base):
     nomor_telepon = Column(String(255))
 
 
-class TransaksiPenjualan(Base):
-    __tablename__ = 'transaksi_penjualan'
-
-    id_transaksi_penjualan = Column(INTEGER(11), primary_key=True)
-    tanggal_transaksi = Column(Date)
-    total_pembayaran = Column(Float(asdecimal=True))
 
 
 class User(Base):
@@ -54,6 +48,12 @@ class User(Base):
     password = Column(String(255), nullable=False)
     alamat = Column(String(255))
 
+class TransaksiPenjualan(Base):
+    __tablename__ = 'transaksi_penjualan'
+
+    id_transaksi_penjualan = Column(INTEGER(11), primary_key=True)
+    tanggal_transaksi = Column(Date)
+    total_pembayaran = Column(Float(asdecimal=True))
 
 class DetailTransaksiPenjualan(Base):
     __tablename__ = 'detail_transaksi_penjualan'

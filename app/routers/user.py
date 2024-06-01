@@ -1,46 +1,65 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
-from .. import schemas, models, database
+from ..models import User as UserModel
+from ..database import get_db
+from ..schemas.user import *
 from sqlalchemy.orm import Session
 from fastapi import Depends
-from .auth import get_current_user
+from ..deps import get_current_user
+from passlib.context import CryptContext
+from icecream import ic
+
 
 router = APIRouter()
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-@router.post("/users/", response_model=schemas.User, status_code=status.HTTP_201_CREATED)
-def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db), current_user: schemas.User = Depends(get_current_user)):
-    db_user = models.User(**user.dict())
+
+@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED)
+def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_user = UserModel(**user.dict())
+    db_user.password = pwd_context.hash(db_user.password)
     db.add(db_user)
     db.commit()
-    db.refresh(db_user)
+    # db.refresh(db_user)
     return db_user
 
-@router.get("/users/", response_model=List[schemas.User])
-def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: schemas.User = Depends(get_current_user)):
-    users = db.query(models.User).offset(skip).limit(limit).all()
+@router.get("/", response_model=List[User],status_code=status.HTTP_200_OK)
+def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    users = db.query(UserModel).offset(skip).limit(limit).all()
     return users
 
-@router.get("/users/{user_id}", response_model=schemas.User)
-def read_user(user_id: int, db: Session = Depends(database.get_db), current_user: schemas.User = Depends(get_current_user)):
-    user = db.query(models.User).filter(models.User.id_user == user_id).first()
+@router.get("/{user_id}", response_model=User,status_code=status.HTTP_200_OK)
+def read_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user = db.query(UserModel).filter(UserModel.id_user == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@router.put("/users/{user_id}", response_model=schemas.User)
-def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(database.get_db), current_user: schemas.User = Depends(get_current_user)):
-    db_user = db.query(models.User).filter(models.User.id_user == user_id).first()
+@router.put("/{user_id}", response_model=User,status_code=status.HTTP_200_OK)
+def update_user(user_id: int, user: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_user = db.query(UserModel).filter(UserModel.id_user == user_id).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    for var, value in vars(user).items():
-        setattr(db_user, var, value) if value else None
+    
+    # Konversi model Pydantic ke objek yang dapat diubah (dict)
+    ic(user)
+    user_data = user.dict(exclude_unset=True)
+    if user_data.get('password'):
+        user_data['password'] = pwd_context.hash(user_data['password'])
+    # ic(user_data)
+    
+    # Perbarui entri basis data
+    db.query(UserModel).filter(UserModel.id_user == user_id).update(user_data)
     db.commit()
+    
+    # Perbarui objek db_user dengan nilai-nilai yang baru
+    db_user = db.query(UserModel).filter(UserModel.id_user == user_id).first()
     return db_user
 
-@router.delete("/users/{user_id}", response_model=schemas.User)
-def delete_user(user_id: int, db: Session = Depends(database.get_db), current_user: schemas.User = Depends(get_current_user)):
-    db_user = db.query(models.User).filter(models.User.id_user == user_id).first()
+@router.delete("/{user_id}", response_model=User,status_code=status.HTTP_200_OK)
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_user = db.query(UserModel).filter(UserModel.id_user == user_id).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     db.delete(db_user)

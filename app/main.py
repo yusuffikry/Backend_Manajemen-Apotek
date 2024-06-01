@@ -3,9 +3,19 @@ from fastapi import FastAPI
 import uvicorn
 # from app.auth import auth_exception_handler
 from .database import SessionLocal, engine
-from .routers import obat, auth, protected, pelanggan,user,pemasok,transaksi
+from fastapi.security import OAuth2PasswordBearer
+from .routers import obat,pemasok,transaksi,user,auth
+
+# from .auth import router
+import icecream as ic
 from . import models
+import logging
+
+logger = logging.getLogger('uvicorn.error')
 models.Base.metadata.create_all(bind=engine)
+
+
+# ic(router)
 
 #Dependency
 # def get_db():
@@ -25,6 +35,9 @@ app.include_router(obat.router, prefix="/api/obat", tags=["obat"])
 app.include_router(user.router, prefix="/api/user", tags=["user"])
 app.include_router(pemasok.router, prefix="/api/pemasok", tags=["pemasok"])
 app.include_router(transaksi.router, prefix="/api/transaksi", tags=["transaksi"])
+
+
+
 
 # # Add exception handler for JWT errors
 # @app.exception_handler(auth_exception_handler)
