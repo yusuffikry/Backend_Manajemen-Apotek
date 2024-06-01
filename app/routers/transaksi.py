@@ -15,7 +15,7 @@ from icecream import ic
 router = APIRouter()
 
 # TransaksiPenjualan Routes
-@router.post("/",  status_code=status.HTTP_201_CREATED)
+@router.post("/",  response_model=StructTransaksi,status_code=status.HTTP_201_CREATED)
 def create_transaksi(transaksi: TransaksiPenjualanCreate,details :List[DetailTransaksiPenjualanCreate], db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_transaksi = TransaksiPenjualanModel(**transaksi.dict())
     db.add(db_transaksi)

@@ -25,6 +25,7 @@ class DetailTransaksiPenjualanBase(BaseModel):
     harga_satuan: float
 
 class DetailTransaksiPenjualanCreate(DetailTransaksiPenjualanBase):
+    id_transaksi_penjualan: Optional[int] = None
     pass
 
 class DetailTransaksiPenjualanRead(DetailTransaksiPenjualanBase):
