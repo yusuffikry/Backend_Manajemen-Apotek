@@ -13,7 +13,7 @@ from ..schemas.auth import *
 from ..schemas.user import *
 from icecream import ic
 from ..database import get_db
-from ..models import User as UserModel
+from ..models import User as UserModel, AkunToken as TokenModel
 from ..deps import get_current_user
 
 # to get a string like this run:
@@ -27,7 +27,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ic(pwd_context.hash("password"))
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 
 router = APIRouter()
@@ -40,10 +40,19 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 def authenticate_user(db: Session, username: str, password: str):
+    # ic(username,password)
     user = db.query(UserModel).filter(UserModel.nama_user == username).first()
     if not user:
         return False
     if not verify_password(password, user.password):
+        return False
+    return user
+
+def authenticate_token(db: Session, email: str, password: str):
+    user = db.query(TokenModel).filter(TokenModel.Email == email).first()
+    if not user:
+        return False
+    if not verify_password(password, user.Password):
         return False
     return user
 
@@ -52,23 +61,36 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=60)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-@router.post("/register", response_model=UserLogin,status_code=201)
-def register(user: UserLogin, db: Session = Depends(get_db)):
-    hashed_password = get_password_hash(user.password)
-    db_user = UserModel(nama_user=user.nama_user, password=hashed_password,role=1)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return user
+# @router.post("/register", response_model=UserLogin,status_code=201)
+# def register(user: UserLogin, db: Session = Depends(get_db)):
+#     hashed_password = get_password_hash(user.password)
+#     db_user = UserModel(nama_user=user.nama_user, password=hashed_password,role=1)
+#     db.add(db_user)
+#     db.commit()
+#     db.refresh(db_user)
+#     return user
 
-@router.post("/login", response_model=Token,status_code=status.HTTP_200_OK)
+@router.post("/login",status_code=status.HTTP_200_OK)
+def login(form_data: UserLogin, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user = authenticate_user(db, form_data.nama_user, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Incorrect email or password",
+        )
+    
+    return user
+    # return form_data
+    # return db.query(UserModel).all()
+
+@router.post("/token", status_code=status.HTTP_200_OK)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = authenticate_user(db, form_data.username, form_data.password)
+    user = authenticate_token(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -77,11 +99,9 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
+        data={"sub": user.Email}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
-
-    
     
 @router.get("/me", response_model=None,status_code=status.HTTP_200_OK)
 def read_users_me(current_user: User = Depends(get_current_user)):

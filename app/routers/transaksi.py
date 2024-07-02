@@ -27,6 +27,7 @@ def create_transaksi(transaksi: TransaksiPenjualanCreate,details :List[DetailTra
         if obat.jumlah_stok < detail.jumlah_beli:
             raise HTTPException(status_code=400, detail="Jumlah stok tidak cukup")
         
+
         obat.jumlah_stok -= detail.jumlah_beli
         detail.id_transaksi_penjualan = db_transaksi.id_transaksi_penjualan
         # logging.error(detail)
@@ -47,29 +48,44 @@ def create_transaksi(transaksi: TransaksiPenjualanCreate,details :List[DetailTra
     # )
 
 
-@router.get("/details", response_model=List[StructTransaksi],status_code=status.HTTP_200_OK)
-def read_transaksi_with_detail(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.get("/details/{transaksi_id}", response_model=StructTransaksi, status_code=status.HTTP_200_OK)
+def read_transaksi_with_detail(transaksi_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Query the database for TransaksiPenjualanModel objects
-    transaksis = db.query(TransaksiPenjualanModel).offset(skip).limit(limit).all()
+    transaksi = db.query(TransaksiPenjualanModel).filter(TransaksiPenjualanModel.id_transaksi_penjualan == transaksi_id).first()
     
     # Log the result before processing
-    logging.info(f"Before Pydantic: {transaksis}")
     
     # Create a list of details for each transaksi
-    details_list = []
-    for transaksi in transaksis:
-        # Query the database for DetailTransaksiPenjualanModel objects related to the current transaksi
-        details = db.query(DetailTransaksiPenjualanModel).filter(DetailTransaksiPenjualanModel.id_transaksi_penjualan == transaksi.id_transaksi_penjualan).all()
-        
-        # Add the details to the list
-        details_list.append({"transaksi": transaksi, "details": details})
     
-    # Return the list of dictionaries
-    return details_list
+        # Query the database for DetailTransaksiPenjualanModel objects related to the current transaksi
+    details = db.query(DetailTransaksiPenjualanModel).filter(DetailTransaksiPenjualanModel.id_transaksi_penjualan == transaksi.id_transaksi_penjualan).all()
+
+    struk = {
+        "transaksi": {
+            "tanggal_transaksi": transaksi.tanggal_transaksi,
+            "total_pembayaran": transaksi.total_pembayaran,
+            "id_transaksi_penjualan": transaksi.id_transaksi_penjualan
+        },
+        "details": []
+    }
+    
+    # Add details to the 'details' list
+    for detail in details:
+        struk["details"].append({
+            "id_obat": detail.id_obat,
+            "jumlah_beli": detail.jumlah_beli,
+            "harga_satuan": detail.harga_satuan,
+            "id_detail_transaksi": detail.id_detail_transaksi
+        })
+
+    # Return the structured data
+    return struk
 
 @router.get("/", response_model=List[TransaksiPenjualanRead],status_code=status.HTTP_200_OK)
 def read_transaksi(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    transaksi = db.query(TransaksiPenjualanModel).offset(skip).limit(limit).all()
+    transaksi = db.query(TransaksiPenjualanModel) \
+        .order_by(TransaksiPenjualanModel.status,TransaksiPenjualanModel.tanggal_transaksi.desc()) \
+        .offset(skip).limit(limit).all()
     return transaksi
 
 @router.get("/{transaksi_id}", response_model=TransaksiPenjualanRead)
@@ -80,28 +96,52 @@ def read_transaksi_by_id(transaksi_id: int, db: Session = Depends(get_db), curre
     transaksi.details = db.query(DetailTransaksiPenjualanModel).filter(DetailTransaksiPenjualanModel.id_transaksi_penjualan == transaksi.id_transaksi_penjualan).all()
     return transaksi
 
-@router.put("/{transaksi_id}", response_model=StructTransaksi,status_code=status.HTTP_200_OK)
+@router.put("/{transaksi_id}", status_code=status.HTTP_200_OK)
 def update_transaksi(transaksi_id: int, transaksi: TransaksiPenjualanUpdate, details: List[DetailTransaksiPenjualanUpdate], db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    db_transaksi = db.query(TransaksiPenjualanModel).filter(TransaksiPenjualanModel.id_transaksi_penjualan == transaksi_id).first()
-    if db_transaksi is None:
-        raise HTTPException(status_code=404, detail="Transaksi not found")
+    try :
+        db_transaksi = db.query(TransaksiPenjualanModel).filter(TransaksiPenjualanModel.id_transaksi_penjualan == transaksi_id).first()
+        if db_transaksi is None:
+            raise HTTPException(status_code=404, detail="Transaksi not found")
 
-    # Update the transaksi
-    for field, value in vars(transaksi).items():
-        setattr(db_transaksi, field, value) if value else None
+        # Update the transaksi
+        for field, value in vars(transaksi).items():
+            setattr(db_transaksi, field, value) if value else None
+            
+        # return db_transaksi
 
-    # Update the details
-    for detail in details:
-        db_detail = db.query(DetailTransaksiPenjualanModel).filter(DetailTransaksiPenjualanModel.id_transaksi_penjualan == db_transaksi.id_transaksi_penjualan).filter(DetailTransaksiPenjualanModel.id_detail_transaksi == detail.id_detail_transaksi).first()
-        if db_detail is None:
-            raise HTTPException(status_code=404, detail="Detail Transaksi not found")
-
-        # Update the detail
-        for field, value in vars(detail).items():
-            setattr(db_detail, field, value) if value else None
-
-    db.commit()
-    return StructTransaksi(transaksi=db_transaksi, details=[db_detail],status_code=status.HTTP_200_OK)
+        updated_details = []
+        for detail in details:
+            db_detail = db.query(DetailTransaksiPenjualanModel).filter_by(id_transaksi_penjualan=db_transaksi.id_transaksi_penjualan, id_obat=detail.id_obat).first()
+            
+            if db_detail:
+                # Calculate stock difference
+                stock_difference = db_detail.jumlah_beli - detail.jumlah_beli
+                db_detail.jumlah_beli = detail.jumlah_beli
+            else:
+                db_detail = DetailTransaksiPenjualanModel(id_transaksi_penjualan=db_transaksi.id_transaksi_penjualan, id_obat=detail.id_obat, quantity=detail.quantity)
+                db.add(db_detail)
+                stock_difference = -detail.jumlah_beli
+            
+            print(f"Stock difference for obat id {detail.id_obat}: {stock_difference}")
+            # Update stock in ObatModel
+            # return detail
+            db_obat = db.query(ObatModel).filter(ObatModel.id_obat == detail.id_obat).first()
+            # return db_obat
+            # print(db_obat)
+            if db_obat:
+                
+                db_obat.jumlah_stok += stock_difference
+                # return db_obat.jumlah_stok
+                if db_obat.jumlah_stok < 0:
+                    raise HTTPException(status_code=400, detail="Insufficient stock for obat id: {}".format(detail.id_obat))
+        
+            
+            db.commit()
+            updated_details.append(db_detail)
+        db.commit()
+        return StructTransaksi(transaksi=db_transaksi, details=[db_detail],status_code=status.HTTP_200_OK)
+    except Exception as e:
+        return e
 
 @router.delete("/{transaksi_id}", response_model=TransaksiPenjualanRead)
 def delete_transaksi(transaksi_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -110,6 +150,9 @@ def delete_transaksi(transaksi_id: int, db: Session = Depends(get_db), current_u
         raise HTTPException(status_code=404, detail="Transaksi not found")
     db_detail = db.query(DetailTransaksiPenjualanModel).filter(DetailTransaksiPenjualanModel.id_transaksi_penjualan == db_transaksi.id_transaksi_penjualan).all()
     for detail in db_detail:
+        if(db_transaksi.status == 0):
+            db_obat = db.query(ObatModel).filter(ObatModel.id_obat == detail.id_obat).first()
+            db_obat.jumlah_stok += detail.jumlah_beli
         db.delete(detail)
     db.delete(db_transaksi)
     

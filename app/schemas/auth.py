@@ -18,3 +18,6 @@ class TokenVerify(BaseModel):
     username: Optional[str] = None
     valid: bool
     
+class TokenCreate(BaseModel):
+    email: str
+    password: str

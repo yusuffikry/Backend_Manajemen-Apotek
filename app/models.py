@@ -7,6 +7,13 @@ from .database import Base
 
 
 
+class AkunToken(Base):
+    __tablename__ = 'akun_token'
+
+    Id = Column(INTEGER(11), primary_key=True)
+    Email = Column(String(50), nullable=False)
+    Password = Column(Text, nullable=False)
+
 
 class Obat(Base):
     __tablename__ = 'obat'
@@ -16,7 +23,7 @@ class Obat(Base):
     jenis_obat = Column(String(255))
     harga = Column(Float(asdecimal=True))
     jumlah_stok = Column(INTEGER(11))
-    # tanggal_kadaluwarsa = Column(Date)
+    tanggal_kadaluwarsa = Column(Date)
 
 
 class Pelanggan(Base):
@@ -36,6 +43,13 @@ class Pemasok(Base):
     nomor_telepon = Column(String(255))
 
 
+class TransaksiPenjualan(Base):
+    __tablename__ = 'transaksi_penjualan'
+
+    id_transaksi_penjualan = Column(INTEGER(11), primary_key=True)
+    tanggal_transaksi = Column(Date)
+    total_pembayaran = Column(Float(asdecimal=True))
+    status = Column(INTEGER(11), nullable=False)
 
 
 class User(Base):
@@ -48,12 +62,6 @@ class User(Base):
     password = Column(String(255), nullable=False)
     alamat = Column(String(255))
 
-class TransaksiPenjualan(Base):
-    __tablename__ = 'transaksi_penjualan'
-
-    id_transaksi_penjualan = Column(INTEGER(11), primary_key=True)
-    tanggal_transaksi = Column(Date)
-    total_pembayaran = Column(Float(asdecimal=True))
 
 class DetailTransaksiPenjualan(Base):
     __tablename__ = 'detail_transaksi_penjualan'

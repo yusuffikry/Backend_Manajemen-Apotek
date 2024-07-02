@@ -8,6 +8,14 @@ Base = declarative_base()
 metadata = Base.metadata
 
 
+class AkunToken(Base):
+    __tablename__ = 'akun_token'
+
+    Id = Column(INTEGER(11), primary_key=True)
+    Email = Column(String(50), nullable=False)
+    Password = Column(Text, nullable=False)
+
+
 class Obat(Base):
     __tablename__ = 'obat'
 
@@ -42,6 +50,7 @@ class TransaksiPenjualan(Base):
     id_transaksi_penjualan = Column(INTEGER(11), primary_key=True)
     tanggal_transaksi = Column(Date)
     total_pembayaran = Column(Float(asdecimal=True))
+    status = Column(INTEGER(11), nullable=False)
 
 
 class User(Base):

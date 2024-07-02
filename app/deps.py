@@ -8,7 +8,7 @@ from .config import SECRET_KEY, ALGORITHM
 from fastapi.security import OAuth2PasswordBearer
 
 reuseable_oauth = OAuth2PasswordBearer(
-    tokenUrl="auth/login",
+    tokenUrl="auth/token",
 )
 
 
@@ -24,7 +24,7 @@ def decode_token(token: str):
 def get_current_user(token: str = Depends(reuseable_oauth), db: Session = Depends(get_db)):
     try:
         email = decode_token(token)
-        user = db.query(models.User).filter(models.User.email == email).first()
+        user = db.query(models.AkunToken).filter(models.AkunToken.Email == email).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         return user

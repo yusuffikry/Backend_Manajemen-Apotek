@@ -5,6 +5,7 @@ from datetime import date
 class TransaksiPenjualanBase(BaseModel):
     tanggal_transaksi: date
     total_pembayaran: float
+    status : Optional[int] = None
 
 class TransaksiPenjualanCreate(TransaksiPenjualanBase):
     pass
@@ -18,6 +19,7 @@ class TransaksiPenjualanRead(TransaksiPenjualanBase):
 class TransaksiPenjualanUpdate(BaseModel):
     tanggal_transaksi: Optional[date] = None
     total_pembayaran: Optional[float] = None
+    status : Optional[int] = None
 
 class DetailTransaksiPenjualanBase(BaseModel):
     id_obat: int
