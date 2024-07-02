@@ -7,7 +7,7 @@ Berikut adalah langkah-langkah untuk menginstal dan menjalankan aplikasi apotek:
 Clone repository aplikasi apotek dari GitHub:
 
 ```bash
-git clone https://github.com/RizkyRizky/apotek.git
+git clone https://github.com/yusuffikry/apotek.git
 ```
 
 ### Import Database
